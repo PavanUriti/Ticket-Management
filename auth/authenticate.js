@@ -39,9 +39,9 @@ async function validateToken(req, res, next) {
       next();
   } catch (ex) {
       if (ex instanceof ClientError) {
-          throw ex;
+        return next(ex);
       }
-      throw new ServerError(401, 'UnAuthorized', ex.message);
+      next(new ServerError(401, 'UnAuthorized', ex.message));
   }
 };
 
