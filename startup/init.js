@@ -3,6 +3,7 @@
 const helmet = require('helmet');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const sanitizer= require('../shared/utils/xss-sanitizer');
 const requestLogger = require('../middleware/reqlogger');
 
 module.exports = init;
@@ -24,4 +25,9 @@ async function init(app) {
     app.use(cors());
     app.use(helmet());
     app.use(bodyParser.json({limit: '100mb'}));
+    app.use(bodyParser.json({type: 'application/*+json'}));
+    app.use(function(req, res, next) {
+        sanitizer.sanitize(req.body);
+        next();
+    });
 };

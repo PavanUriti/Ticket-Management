@@ -1,7 +1,7 @@
 const config = require('../config/default.json');
 const mongoose = require('mongoose');
 
-const DATABASE = 'ticket-management';
+const DATABASE = process.env.DB_DATABASE;
 
 const baseConnectionString = config.mongobaseUrlString;
 const options = { 

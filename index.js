@@ -1,8 +1,12 @@
+'use strict';
+
+require('dotenv').config();
+
 const express = require('express');
 
 const app = express();
 
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 startup().then( ()=> {
     app.listen(PORT, () => {
         console.log(`Server is running on Port: ${PORT}`);
@@ -16,7 +20,8 @@ startup().then( ()=> {
 */
 async function startup() {
     await require('./startup/init')(app);
-    await require('./startup/portal.routes')(app);
+    app.use(await require('./auth/authenticate'));
+    await require('./startup/server.routes')(app);
     app.use(require('./middleware/errorhandler')); // Error handling middleware
 }
 
