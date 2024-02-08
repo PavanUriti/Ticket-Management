@@ -48,7 +48,7 @@ async function registerNewBus(serviceId, busType, travels, toCity, fromCity) {
  */
 async function resetTickets(selectedBuses) {
   try {
-    const query = selectedBuses ? { serviceId: { $in: selectedBuses } } : {};
+    const query = selectedBuses ? { _id: { $in: selectedBuses } } : {};
 
     const result = await Bus.updateMany(query, {
       $set: {
