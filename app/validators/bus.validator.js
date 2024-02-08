@@ -13,7 +13,11 @@ module.exports = {
  */
 function validateBusRegistration(bus) {
     const schema = Joi.object({
-        busNo: Joi.string().trim().min(5).max(10).required(),
+        serviceId: Joi.string().trim().min(5).max(10).required(),
+        busType: Joi.string().trim().min(5).max(50).required(),
+        travels: Joi.string().trim().min(5).max(30).required(),
+        toCity: Joi.string().trim().min(3).max(20).required(),
+        fromCity: Joi.string().trim().min(3).max(20).required(),
     });
 
     return schema.validate(bus);

@@ -21,16 +21,16 @@ module.exports = {
  */
 async function registerNewBus(req, res, next) {
     try {
-        const { busNo } = req.body;
+        const { serviceId, busType, travels, toCity, fromCity } = req.body;
 
         const { error } = busValidator.validateBusRegistration(req.body);
         if (error) {
             throw new ClientError(StatusCodes.BAD_REQUEST, INVALID_REQUEST_BODY_FORMAT, error.message);
         }
 
-        const savedBusId = await busService.registerNewBus(busNo);
+        const savedBusId = await busService.registerNewBus(serviceId, busType, travels, toCity, fromCity);
     
-        return handleResponse(req, res, next, StatusCodes.OK, {'busId': savedBusId}, ` Bus - ${busNo} registered successfully!`, '', null);
+        return handleResponse(req, res, next, StatusCodes.OK, {'busId': savedBusId}, ` Bus - ${serviceId} registered successfully!`, '', null);
     } catch (error) {
         if (error instanceof ClientError) {
             return next(error);
