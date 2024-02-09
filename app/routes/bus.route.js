@@ -12,6 +12,8 @@ busRouter.post('/reset-tickets', adminOnly, busController.resetTickets);
 
 busRouter.put('/:id/ticket/update', busController.updateTicketStatus);
 
+busRouter.get('/:id/ticket?', busController.getTicketsByStatus);
+
 busRouter.post('/:id/ticket/status', busController.getTicketsStatus);
 
-busRouter.get('/:id/tickets?', busController.getTicketsByStatus);
+busRouter.post('/:id/ticket/bookings', busController.getBookingDetails);

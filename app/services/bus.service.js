@@ -10,6 +10,7 @@ module.exports = {
     updateTicketStatus,
     getTicketsStatus,
     getTicketsByStatus,
+    getBookingDetails,
 };
 
 /**
@@ -53,9 +54,9 @@ async function registerNewBus(serviceId, busType, travels, toCity, fromCity, dat
  * @param {*} selectedBuses 
  * @returns 
  */
-async function resetTickets(selectedBuses) {
+async function resetTickets(selectedBuses = []) {
   try {
-    const query = selectedBuses ? { _id: { $in: selectedBuses } } : {};
+    const query = selectedBuses.length>0 ? { _id: { $in: selectedBuses } } : {};
 
     const result = await Bus.updateMany(query, {
       $set: {
@@ -93,7 +94,7 @@ async function isBusExist(id) {
  * @param {*} seatDetails 
  * @returns 
  */
-async function updateTicketStatus(bus, seatDetails) {
+async function updateTicketStatus(userId, bus, seatDetails) {
   try {
     const bulkOperations = await Promise.all(
       seatDetails.map(async (seatDetail) => {
@@ -129,7 +130,9 @@ async function updateTicketStatus(bus, seatDetails) {
           age: seatDetail.PaxList.age,
           dateOfBooking: moment().unix(),
           busId: bus._id,
+          seatNo: seatNo,
           dateOfJourney: bus.dateOfJourney,
+          bookedBy: userId,
         };
         // Insert booking details into the Booking collection
         const insertedBooking = await Booking.create(bookingDetails);
@@ -259,6 +262,62 @@ async function getTicketsByStatus(busId, ticketStatus) {
     });
 
     const result = await Bus.aggregate(pipeline);
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * 
+ * @param {*} busId 
+ * @returns 
+ */
+async function getBookingDetails(busId, bookingIds = []) {
+  try {
+    const busObjectId = new mongoose.Types.ObjectId(busId);
+    const bookingObjectIds = bookingIds.map((bookingId) => new mongoose.Types.ObjectId(bookingId));
+
+    const matchCondition = bookingIds.length>0 ? {busId: busObjectId, _id: { $in: bookingObjectIds }}: {busId: busObjectId};
+    const pipeline = [
+      { $match: matchCondition},
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'bookedBy',
+          foreignField: '_id',
+          as: 'userDetails',
+        },
+      },
+      {
+        $addFields: {
+          userDetails: { $arrayElemAt: ['$userDetails', 0] },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          bookingId: '$_id',
+          seatNo: '$seatNo',
+          passengerDetails: {
+                firstName:'$firstName',
+                lastName:'$lastName',
+                email: '$email',
+                gender: '$gender',
+                age: '$age',
+          },
+          dateOfBooking: '$dateOfBooking',
+          dateOfJourney: '$dateOfJourney',
+          userDetails:{
+            userId: '$userDetails._id',
+            email: '$userDetails.email',
+          }
+        },
+      }
+    ];
+
+    const result = await Booking.aggregate(pipeline);
 
     return result;
   } catch (error) {

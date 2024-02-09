@@ -8,6 +8,7 @@ module.exports = {
     validateResetTickets,
     validateUpdateTicketStatus,
     validateGetTicketsStatus,
+    validateGetBookingDetails,
 }
 
 /**
@@ -82,4 +83,17 @@ function validateGetTicketsStatus(seats) {
     });
 
     return schema.validate(seats);
+}
+
+/**
+ *
+ * @param {*} user schema
+ * @return {validationResult} validationResult
+ */
+function validateGetBookingDetails(bookingIds) {
+    const schema = Joi.object({
+        bookingIds : Joi.array().items(Joi.string().regex(ID)).min(0).optional(),
+    });
+
+    return schema.validate(bookingIds);
 }

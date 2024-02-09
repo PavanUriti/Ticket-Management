@@ -10,7 +10,9 @@ const bookingSchema = new Schema({
     age: { type: Number, required: true},
     dateOfBooking: { type: Number, required: true},
     busId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
+    seatNo: { type: String, required: true },
     dateOfJourney: { type: Number, required: true},
+    bookedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 });
 
 module.exports = mongoose.model('Booking', bookingSchema);

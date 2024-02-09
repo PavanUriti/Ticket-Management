@@ -13,6 +13,7 @@ module.exports = {
     updateTicketStatus,
     getTicketsStatus,
     getTicketsByStatus,
+    getBookingDetails,
 }
 
 /**
@@ -78,6 +79,7 @@ async function resetTickets(req, res, next) {
  */
 async function updateTicketStatus(req, res, next) {
     try {
+        const userId = req.user.userId;
         const {seatDetails} = req.body
 
         const { error } = busValidator.validateUpdateTicketStatus(req.body);
@@ -91,7 +93,7 @@ async function updateTicketStatus(req, res, next) {
             throw new ClientError(StatusCodes.BAD_REQUEST,'Bus not found');
         }
 
-        const result = await busService.updateTicketStatus(bus, seatDetails);
+        const result = await busService.updateTicketStatus(userId, bus, seatDetails);
     
         return handleResponse(req, res, next, StatusCodes.OK, {}, `Ticket(s) Status Updated successfully`, '', null);
     } catch (error) {
@@ -152,5 +154,33 @@ async function getTicketsByStatus(req, res, next) {
             return next(error);
         }
         next(new ServerError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred during getting ticket status.', error.message));
+    }
+};
+
+/**
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ * @returns 
+ */
+async function getBookingDetails(req, res, next) {
+    try {
+        const busId = req.params.id;
+        const {bookingIds} = req.body
+
+        const { error } = busValidator.validateGetBookingDetails(req.body);
+        if (error) {
+            throw new ClientError(StatusCodes.BAD_REQUEST, INVALID_REQUEST_BODY_FORMAT, error.message);
+        }
+
+        const result = await busService.getBookingDetails(busId, bookingIds);
+    
+        return handleResponse(req, res, next, StatusCodes.OK, result, `Booking Details Retreived successfully`, '', null);
+    } catch (error) {
+        if (error instanceof ClientError) {
+            return next(error);
+        }
+        next(new ServerError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred during getting booking details.', error.message));
     }
 };
