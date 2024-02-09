@@ -1,12 +1,15 @@
 const Bus = require('../models/bus.model');
 const Booking = require('../models/booking.model');
 const moment = require('moment');
+const mongoose = require('mongoose');
 
 module.exports = {
     registerNewBus,
     resetTickets,
     isBusExist,
     updateTicketStatus,
+    getTicketsStatus,
+    getTicketsByStatus,
 };
 
 /**
@@ -74,11 +77,22 @@ async function resetTickets(selectedBuses) {
   }
 }
 
+/**
+ * 
+ * @param {*} id 
+ * @returns 
+ */
 async function isBusExist(id) {
     const bus = await Bus.findOne({ _id: id });
     return bus; 
 }
 
+/**
+ * 
+ * @param {*} bus 
+ * @param {*} seatDetails 
+ * @returns 
+ */
 async function updateTicketStatus(bus, seatDetails) {
   try {
     const bulkOperations = await Promise.all(
@@ -143,4 +157,111 @@ async function updateTicketStatus(bus, seatDetails) {
 }
 
 
-  
+/**
+ * 
+ * @param {*} busId 
+ * @returns 
+ */
+async function getTicketsStatus(busId, requestedSeats = []) {
+  try {
+    const pipeline = [
+      { $match: { _id: new mongoose.Types.ObjectId(busId) } },
+      {
+        $unwind: '$seats',
+      },
+    ];
+
+    if (requestedSeats.length > 0) {
+      pipeline.push({
+        $match: {
+          'seats.seatNo': { $in: requestedSeats },
+        },
+      });
+    }
+
+    pipeline.push({
+      $project: {
+        _id: 0,
+        seatNo: '$seats.seatNo',
+        section: '$seats.section',
+        isAvailable: '$seats.isAvailable',
+        bookingId: { $ifNull: ['$seats.bookingId', '$$REMOVE'] },
+      },
+    });
+
+    const result = await Bus.aggregate(pipeline);
+    return result;
+  } catch (error) {
+    throw error;
+  }
+}
+
+
+/**
+ * 
+ * @param {*} busId 
+ * @returns 
+ */
+async function getTicketsByStatus(busId, ticketStatus) {
+  try {
+    const matchCondition = ticketStatus === 'all'
+      ? {}
+      : ticketStatus === 'open'
+        ? { 'seats.isAvailable': true }
+        : { 'seats.isAvailable': false };
+
+    const pipeline = [
+      { $match: { _id: new mongoose.Types.ObjectId(busId) } },
+      {
+        $unwind: '$seats',
+      },
+      {
+        $match: matchCondition,
+      },
+    ];
+
+    if (ticketStatus !== 'open') {
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'bookings',
+            localField: 'seats.bookingId',
+            foreignField: '_id',
+            as: 'passengerDetails',
+          },
+        },
+        {
+          $addFields: {
+            passengerDetails: { $arrayElemAt: ['$passengerDetails', 0] },
+          },
+        }
+      );
+    }
+
+    pipeline.push({
+      $project: {
+        _id: 0,
+        seatNo: '$seats.seatNo',
+        section: '$seats.section',
+        isAvailable: '$seats.isAvailable',
+        bookingId: { $ifNull: ['$seats.bookingId', '$$REMOVE'] },
+        passengerDetails: {
+          $cond: [
+            {$gt: ['$passengerDetails.age', null]},
+            {
+              gender: '$passengerDetails.gender',
+              age: '$passengerDetails.age',
+            },
+            '$$REMOVE',
+          ],
+        },
+      },
+    });
+
+    const result = await Bus.aggregate(pipeline);
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+}

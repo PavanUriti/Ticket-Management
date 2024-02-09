@@ -7,6 +7,7 @@ module.exports = {
     validateBusRegistration,
     validateResetTickets,
     validateUpdateTicketStatus,
+    validateGetTicketsStatus,
 }
 
 /**
@@ -68,4 +69,17 @@ function validateUpdateTicketStatus(seatDeatils) {
     });
 
     return schema.validate(seatDeatils);
+}
+
+/**
+ *
+ * @param {*} user schema
+ * @return {validationResult} validationResult
+ */
+function validateGetTicketsStatus(seats) {
+    const schema = Joi.object({
+        seats : Joi.array().items(Joi.string().min(3).max(4)).min(0).optional(),
+    });
+
+    return schema.validate(seats);
 }

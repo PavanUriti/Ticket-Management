@@ -11,6 +11,8 @@ module.exports = {
     registerNewBus,
     resetTickets,
     updateTicketStatus,
+    getTicketsStatus,
+    getTicketsByStatus,
 }
 
 /**
@@ -86,7 +88,7 @@ async function updateTicketStatus(req, res, next) {
         const bus = await busService.isBusExist(req.params.id);
 
         if (!!!bus) {
-        throw new Error('Bus not found');
+            throw new ClientError(StatusCodes.BAD_REQUEST,'Bus not found');
         }
 
         const result = await busService.updateTicketStatus(bus, seatDetails);
@@ -97,5 +99,58 @@ async function updateTicketStatus(req, res, next) {
             return next(error);
         }
         next(new ServerError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred during update ticket status.', error.message));
+    }
+};
+
+/**
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ * @returns 
+ */
+async function getTicketsStatus(req, res, next) {
+    try {
+        const {seats} = req.body
+
+        const { error } = busValidator.validateGetTicketsStatus(req.body);
+        if (error) {
+            throw new ClientError(StatusCodes.BAD_REQUEST, INVALID_REQUEST_BODY_FORMAT, error.message);
+        }
+
+        const bookedSeats = await busService.getTicketsStatus(req.params.id, seats);
+    
+        return handleResponse(req, res, next, StatusCodes.OK, bookedSeats, `Ticket Status Retreived successfully`, '', null);
+    } catch (error) {
+        if (error instanceof ClientError) {
+            return next(error);
+        }
+        next(new ServerError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred during getting ticket status.', error.message));
+    }
+};
+
+/**
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ * @returns 
+ */
+async function getTicketsByStatus(req, res, next) {
+    try {
+        const ticketStatus = req.query.status || 'all';
+
+        if (ticketStatus !== 'open' && ticketStatus !== 'close' && ticketStatus !== 'all') {
+            throw new ClientError(StatusCodes.BAD_REQUEST, 'Invalid ticket status' );
+        }
+
+        const bookedSeats = await busService.getTicketsByStatus(req.params.id, ticketStatus);
+    
+        return handleResponse(req, res, next, StatusCodes.OK, bookedSeats, `Ticket Status Retreived successfully`, '', null);
+    } catch (error) {
+        if (error instanceof ClientError) {
+            return next(error);
+        }
+        next(new ServerError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred during getting ticket status.', error.message));
     }
 };
