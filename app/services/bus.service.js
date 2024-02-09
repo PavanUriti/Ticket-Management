@@ -80,8 +80,32 @@ async function isBusExist(id) {
 }
 
 async function updateTicketStatus(bus, seatDetails) {
-    try {
-      const bookingDocuments = seatDetails.map((seatDetail) => {
+  try {
+    const bulkOperations = await Promise.all(
+      seatDetails.map(async (seatDetail) => {
+        const { seatNo } = seatDetail;
+
+        if (seatDetail.status === 'open') {
+          const bookingIdToDelete = bus.seats.find(
+            (seat) => seat.seatNo === seatNo
+          ).bookingId;
+
+          await Booking.deleteOne({ _id: bookingIdToDelete });
+
+          return {
+            updateOne: {
+              filter: { _id: bus._id },
+              update: {
+                $set: {
+                  'seats.$[element].isAvailable': true,
+                  'seats.$[element].bookingId': null,
+                },
+              },
+              arrayFilters: [{ 'element.seatNo': seatNo }],
+            },
+          };
+        }
+
         const bookingDetails = {
           firstName: seatDetail.PaxList.firstName,
           lastName: seatDetail.PaxList.lastName,
@@ -93,17 +117,9 @@ async function updateTicketStatus(bus, seatDetails) {
           busId: bus._id,
           dateOfJourney: bus.dateOfJourney,
         };
-  
-        return bookingDetails;
-      });
-  
-      // Insert booking details into the Booking collection
-      const insertedBookings = await Booking.insertMany(bookingDocuments);
-  
-      const bulkOperations = seatDetails.map((seatDetail, index) => {
-        const { seatNo } = seatDetail;
-        const insertedBooking = insertedBookings[index];
-  
+        // Insert booking details into the Booking collection
+        const insertedBooking = await Booking.create(bookingDetails);
+
         return {
           updateOne: {
             filter: { _id: bus._id},
@@ -113,15 +129,18 @@ async function updateTicketStatus(bus, seatDetails) {
                 'seats.$[element].bookingId': insertedBooking._id,
               },
             },
-            arrayFilters: [{ 'element.seatNo': seatNo }],
+            arrayFilters: [{ 'element.seatNo': seatNo, 'element.isAvailable': true }],
           },
         };
-      });
+      })
+    );
 
-      await Bus.collection.bulkWrite(bulkOperations);
-      return 'Ticket status updated successfully';
-    } catch (error) {
-      throw error;
-    }
+    await Bus.collection.bulkWrite(bulkOperations);
+    return 'Ticket status updated successfully';
+  } catch (error) {
+    throw error;
   }
+}
+
+
   

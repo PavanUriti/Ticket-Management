@@ -47,6 +47,7 @@ function validateResetTickets(bus) {
  */
 function validateUpdateTicketStatus(seatDeatils) {
     const seatDetailsSchema = Joi.object({
+        status: Joi.string().valid('open', 'close').required(),
         seatNo: Joi.string().required(),
         PaxList: Joi.object({
                 firstName: Joi.string().regex(nameRegex).max(30).required(),
@@ -55,7 +56,11 @@ function validateUpdateTicketStatus(seatDeatils) {
                 phone: Joi.string().regex(phoneRegex).allow(''),
                 gender: Joi.string().valid('male', 'female').required(),
                 age: Joi.number().required(),
-        }).required(),
+        }).when('status', {
+            is: 'close',
+            then: Joi.required(),
+            otherwise: Joi.forbidden(),
+        }),    
       });
 
     const schema = Joi.object({
