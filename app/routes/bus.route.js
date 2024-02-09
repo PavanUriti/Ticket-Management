@@ -16,4 +16,4 @@ busRouter.get('/:id/ticket?', busController.getTicketsByStatus);
 
 busRouter.post('/:id/ticket/status', busController.getTicketsStatus);
 
-busRouter.post('/:id/ticket/bookings', busController.getBookingDetails);
+busRouter.post('/:id/ticket/bookings', adminOnly, busController.getBookingDetails);
