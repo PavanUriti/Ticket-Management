@@ -15,6 +15,7 @@ const busSchema = new Schema({
     travels: { type: String, required: true, trim: true, minlength: 5, maxlength: 30, required: true },
     toCity: { type: String, required: true, trim: true, minlength: 3, maxlength: 20, required: true },
     fromCity: { type: String, required: true, trim: true, minlength: 3, maxlength: 20, required: true },
+    dateOfJourney: { type: Number, required: true},
     seats: [seatSchema],
 },{ timestamps: true });
 

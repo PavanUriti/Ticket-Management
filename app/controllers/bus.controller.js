@@ -10,6 +10,7 @@ const INVALID_REQUEST_BODY_FORMAT = 'Invalid Request Body Format';
 module.exports = {
     registerNewBus,
     resetTickets,
+    updateTicketStatus,
 }
 
 /**
@@ -21,14 +22,14 @@ module.exports = {
  */
 async function registerNewBus(req, res, next) {
     try {
-        const { serviceId, busType, travels, toCity, fromCity } = req.body;
+        const { serviceId, busType, travels, toCity, fromCity, dateOfJourney } = req.body;
 
         const { error } = busValidator.validateBusRegistration(req.body);
         if (error) {
             throw new ClientError(StatusCodes.BAD_REQUEST, INVALID_REQUEST_BODY_FORMAT, error.message);
         }
 
-        const savedBusId = await busService.registerNewBus(serviceId, busType, travels, toCity, fromCity);
+        const savedBusId = await busService.registerNewBus(serviceId, busType, travels, toCity, fromCity, dateOfJourney);
     
         return handleResponse(req, res, next, StatusCodes.OK, {'busId': savedBusId}, ` Bus - ${serviceId} registered successfully!`, '', null);
     } catch (error) {
@@ -63,5 +64,38 @@ async function resetTickets(req, res, next) {
             return next(error);
         }
         next(new ServerError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred during reset tickets.', error.message));
+    }
+};
+
+/**
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ * @returns 
+ */
+async function updateTicketStatus(req, res, next) {
+    try {
+        const {seatDetails} = req.body
+
+        const { error } = busValidator.validateUpdateTicketStatus(req.body);
+        if (error) {
+            throw new ClientError(StatusCodes.BAD_REQUEST, INVALID_REQUEST_BODY_FORMAT, error.message);
+        }
+
+        const bus = await busService.isBusExist(req.params.id);
+
+        if (!!!bus) {
+        throw new Error('Bus not found');
+        }
+
+        const result = await busService.updateTicketStatus(bus, seatDetails);
+    
+        return handleResponse(req, res, next, StatusCodes.OK, {}, `Ticket(s) Status Updated successfully`, '', null);
+    } catch (error) {
+        if (error instanceof ClientError) {
+            return next(error);
+        }
+        next(new ServerError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred during update ticket status.', error.message));
     }
 };

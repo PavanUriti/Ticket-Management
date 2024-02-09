@@ -9,3 +9,5 @@ module.exports = busRouter;
 busRouter.post('/', adminOnly, busController.registerNewBus);
 
 busRouter.post('/reset-tickets', adminOnly, busController.resetTickets);
+
+busRouter.put('/:id/ticket/update', busController.updateTicketStatus);

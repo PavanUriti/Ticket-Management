@@ -1,8 +1,12 @@
 const Bus = require('../models/bus.model');
+const Booking = require('../models/booking.model');
+const moment = require('moment');
 
 module.exports = {
     registerNewBus,
     resetTickets,
+    isBusExist,
+    updateTicketStatus,
 };
 
 /**
@@ -10,10 +14,10 @@ module.exports = {
  * @param {*} serviceId 
  * @returns 
  */
-async function registerNewBus(serviceId, busType, travels, toCity, fromCity) {
+async function registerNewBus(serviceId, busType, travels, toCity, fromCity, dateOfJourney) {
     // Create a bus with 40 seats - (lower -20 & upper -20)
     const busData = {
-      serviceId, busType, travels, toCity, fromCity, 
+      serviceId, busType, travels, toCity, fromCity, dateOfJourney,
       seats: [],
     };
   
@@ -69,3 +73,55 @@ async function resetTickets(selectedBuses) {
     throw error;
   }
 }
+
+async function isBusExist(id) {
+    const bus = await Bus.findOne({ _id: id });
+    return bus; 
+}
+
+async function updateTicketStatus(bus, seatDetails) {
+    try {
+      const bookingDocuments = seatDetails.map((seatDetail) => {
+        const bookingDetails = {
+          firstName: seatDetail.PaxList.firstName,
+          lastName: seatDetail.PaxList.lastName,
+          email: seatDetail.PaxList.email,
+          phone: seatDetail.PaxList.phone,
+          gender: seatDetail.PaxList.gender,
+          age: seatDetail.PaxList.age,
+          dateOfBooking: moment().unix(),
+          busId: bus._id,
+          dateOfJourney: bus.dateOfJourney,
+        };
+  
+        return bookingDetails;
+      });
+  
+      // Insert booking details into the Booking collection
+      const insertedBookings = await Booking.insertMany(bookingDocuments);
+  
+      const bulkOperations = seatDetails.map((seatDetail, index) => {
+        const { seatNo } = seatDetail;
+        const insertedBooking = insertedBookings[index];
+  
+        return {
+          updateOne: {
+            filter: { _id: bus._id},
+            update: {
+              $set: {
+                'seats.$[element].isAvailable': false,
+                'seats.$[element].bookingId': insertedBooking._id,
+              },
+            },
+            arrayFilters: [{ 'element.seatNo': seatNo }],
+          },
+        };
+      });
+
+      await Bus.collection.bulkWrite(bulkOperations);
+      return 'Ticket status updated successfully';
+    } catch (error) {
+      throw error;
+    }
+  }
+  
