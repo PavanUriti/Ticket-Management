@@ -60,15 +60,7 @@ async function resetTickets(selectedBuses = []) {
 
     const result = await Bus.updateMany(query, {
       $set: {
-        seats: Array.from({ length: 20 }, (_, i) => ({
-            seatNo: `L-${i + 1}`,
-            section: 'lower',
-            isAvailable: true,
-        })).concat(Array.from({ length: 20 }, (_, i) => ({
-            seatNo: `U-${i + 1}`,
-            section: 'upper',
-            isAvailable: true,
-        }))),
+        'seats.$[].isAvailable': true, 'seats.$[].bookingId': null,
       },
     });
 
@@ -96,68 +88,98 @@ async function isBusExist(id) {
  */
 async function updateTicketStatus(userId, bus, seatDetails) {
   try {
+    const combinedSeatDetails = seatDetails
+    .filter(seatDetail => seatDetail.status === 'close' && isSeatAvailable(bus, seatDetail.seatNo))
+    .map(seatDetail => ({
+      seatNo: seatDetail.seatNo,
+      passengerDetails: seatDetail.PaxList,
+    }));
+
+
+    const bookingDetails = {
+      busId: bus._id,
+      seats: combinedSeatDetails,
+      dateOfBooking: moment().unix(),
+      dateOfJourney: bus.dateOfJourney,
+      bookedBy: userId,
+    };
+
+    const insertedBooking = await Booking.create(bookingDetails);
+
     const bulkOperations = await Promise.all(
       seatDetails.map(async (seatDetail) => {
         const { seatNo } = seatDetail;
 
         if (seatDetail.status === 'open') {
-          const bookingIdToDelete = bus.seats.find(
-            (seat) => seat.seatNo === seatNo
-          ).bookingId;
-
-          await Booking.deleteOne({ _id: bookingIdToDelete });
-
-          return {
-            updateOne: {
-              filter: { _id: bus._id },
-              update: {
-                $set: {
-                  'seats.$[element].isAvailable': true,
-                  'seats.$[element].bookingId': null,
-                },
-              },
-              arrayFilters: [{ 'element.seatNo': seatNo }],
-            },
-          };
+          const seat = bus.seats.find(seat => seat.seatNo === seatNo);
+          if (seat.bookingId) {
+            await removeSeatFromBookingOperation(bus._id, seat.bookingId, seatNo)
+          }
+          return updateOpenSeatOperation(bus._id, seatNo);
+        } else if (seatDetail.status === 'close') {
+          return updateCloseSeatOperation(bus._id, seatNo, insertedBooking._id);
         }
-
-        const bookingDetails = {
-          firstName: seatDetail.PaxList.firstName,
-          lastName: seatDetail.PaxList.lastName,
-          email: seatDetail.PaxList.email,
-          phone: seatDetail.PaxList.phone,
-          gender: seatDetail.PaxList.gender,
-          age: seatDetail.PaxList.age,
-          dateOfBooking: moment().unix(),
-          busId: bus._id,
-          seatNo: seatNo,
-          dateOfJourney: bus.dateOfJourney,
-          bookedBy: userId,
-        };
-        // Insert booking details into the Booking collection
-        const insertedBooking = await Booking.create(bookingDetails);
-
-        return {
-          updateOne: {
-            filter: { _id: bus._id},
-            update: {
-              $set: {
-                'seats.$[element].isAvailable': false,
-                'seats.$[element].bookingId': insertedBooking._id,
-              },
-            },
-            arrayFilters: [{ 'element.seatNo': seatNo, 'element.isAvailable': true }],
-          },
-        };
       })
     );
 
     await Bus.collection.bulkWrite(bulkOperations);
+    await Booking.deleteMany({ seats: [] });
     return 'Ticket status updated successfully';
   } catch (error) {
     throw error;
   }
 }
+
+function isSeatAvailable(bus, seatNo) {
+  const seat = bus.seats.find(s => s.seatNo === seatNo);
+  return seat ? seat.isAvailable : false;
+}
+
+function updateOpenSeatOperation(busId, seatNo) {
+  return {
+    updateOne: {
+      filter: { _id: busId },
+      update: {
+        $set: {
+          'seats.$[element].isAvailable': true,
+          'seats.$[element].bookingId': null,
+        },
+      },
+      arrayFilters: [{ 'element.seatNo': seatNo }],
+    },
+  };
+}
+
+function updateCloseSeatOperation(busId, seatNo, bookingId) {
+  return {
+    updateOne: {
+      filter: { _id: busId },
+      update: {
+        $set: {
+          'seats.$[element].isAvailable': false,
+          'seats.$[element].bookingId': bookingId,
+        },
+      },
+      arrayFilters: [
+        { 'element.seatNo': seatNo, 'element.isAvailable': true },
+      ],
+    },
+  };
+}
+
+async function removeSeatFromBookingOperation(busId, bookingId, seatNo) {
+  try {
+    const result = await Booking.updateOne({ _id: bookingId }, {
+      $pull: {
+        seats: { seatNo },
+      },
+    });
+  } catch (error) {
+    console.error("Error removing seat from booking:", error);
+    throw error;
+  }
+}
+
 
 
 /**
@@ -227,16 +249,27 @@ async function getTicketsByStatus(busId, ticketStatus) {
       pipeline.push(
         {
           $lookup: {
-            from: 'bookings',
-            localField: 'seats.bookingId',
-            foreignField: '_id',
-            as: 'passengerDetails',
+            'from': 'bookings',
+            'let': {'bookingId':'$seats.bookingId' },
+            'pipeline': [
+              { $match: { $expr: { $eq: ['$_id', '$$bookingId'] } } },
+              {
+                $project: {
+                  seats: '$seats',
+                },
+              },
+            ],
+            'as': 'bookingDetails',
           },
         },
-        {
-          $addFields: {
-            passengerDetails: { $arrayElemAt: ['$passengerDetails', 0] },
-          },
+        { '$unwind': '$bookingDetails' },
+        { '$unwind': '$bookingDetails.seats' },
+        { 
+          $match: { 
+            $expr: { 
+              $eq: [ '$bookingDetails.seats.seatNo', '$seats.seatNo' ]
+            }
+          } 
         }
       );
     }
@@ -250,10 +283,10 @@ async function getTicketsByStatus(busId, ticketStatus) {
         bookingId: { $ifNull: ['$seats.bookingId', '$$REMOVE'] },
         passengerDetails: {
           $cond: [
-            {$gt: ['$passengerDetails.age', null]},
+            {$gt: ['$bookingDetails.seats.passengerDetails.age', null]},
             {
-              gender: '$passengerDetails.gender',
-              age: '$passengerDetails.age',
+              gender: '$bookingDetails.seats.passengerDetails.gender',
+              age: '$bookingDetails.seats.passengerDetails.age',
             },
             '$$REMOVE',
           ],
@@ -296,16 +329,19 @@ async function getBookingDetails(busId, bookingIds = []) {
         },
       },
       {
+        $unwind: '$seats',
+      },
+      {
         $project: {
           _id: 0,
           bookingId: '$_id',
-          seatNo: '$seatNo',
+          seatNo: '$seats.seatNo',
           passengerDetails: {
-                firstName:'$firstName',
-                lastName:'$lastName',
-                email: '$email',
-                gender: '$gender',
-                age: '$age',
+                firstName:'$seats.passengerDetails.firstName',
+                lastName:'$seats.passengerDetails.lastName',
+                email: '$seats.passengerDetails.email',
+                gender: '$seats.passengerDetails.gender',
+                age: '$seats.passengerDetails.age',
           },
           dateOfBooking: '$dateOfBooking',
           dateOfJourney: '$dateOfJourney',
