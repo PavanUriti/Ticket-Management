@@ -5,6 +5,7 @@ const ServerError = require('../../shared/server-error');
 const {StatusCodes} = require('http-status-codes');
 const userValidator = require('../validators/user.validator');
 const bcrypt = require('bcryptjs');
+const { userEvents } = require('../../startup/event.handlers');
 
 const INVALID_REQUEST_BODY_FORMAT = 'Invalid Request Body Format';
 
@@ -53,6 +54,8 @@ async function registration(req, res, next) {
         const userId = await userService.updateRegistrationDetailsInDB(userData);
 
         const token = await userService.generateUserTokens(userId, role, email);
+
+        userEvents.emit('userRegistered', { userId, email, role });
 
         return handleResponse(req, res, next, StatusCodes.OK, {'token': token}, `${role} registered successfully!`, '', null);
     } catch (error) {

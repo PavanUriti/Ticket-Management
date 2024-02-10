@@ -2,6 +2,7 @@ const Bus = require('../models/bus.model');
 const Booking = require('../models/booking.model');
 const moment = require('moment');
 const mongoose = require('mongoose');
+const { busEvents } = require('../../startup/event.handlers');
 
 module.exports = {
     registerNewBus,
@@ -45,6 +46,7 @@ async function registerNewBus(serviceId, busType, travels, toCity, fromCity, dat
     const bus = new Bus(busData);
     const savedBus = await bus.save();
 
+    busEvents.emit('busRegistered', {busId: savedBus._id, serviceId: serviceId})
     // Return the bus_id
     return savedBus._id;
 }
@@ -64,6 +66,7 @@ async function resetTickets(selectedBuses = []) {
       },
     });
 
+    busEvents.emit('serverReset', { selectedBuses });
     return result.modifiedCount;
   } catch (error) {
     throw error;
@@ -136,6 +139,7 @@ function isSeatAvailable(bus, seatNo) {
 }
 
 function updateOpenSeatOperation(busId, seatNo) {
+  busEvents.emit('ticketOpened', { busId, seatNo });
   return {
     updateOne: {
       filter: { _id: busId },
@@ -151,6 +155,7 @@ function updateOpenSeatOperation(busId, seatNo) {
 }
 
 function updateCloseSeatOperation(busId, seatNo, bookingId) {
+  busEvents.emit('ticketClosed', { busId, seatNo, bookingId });
   return {
     updateOne: {
       filter: { _id: busId },

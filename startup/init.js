@@ -21,6 +21,7 @@ async function init(app) {
         console.log(ex, '');
     });
     await require('./mongo.init')();
+    require('./event.handlers').initializeEventHandlers()
     app.use(requestLogger);
     app.use(cors());
     app.use(helmet());

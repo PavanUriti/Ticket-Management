@@ -3,7 +3,7 @@ const Schema = mongoose.Schema;
 
 const seatSchema = new Schema({
     _id: false,
-    seatNo: { type: String, unique: true, required: true },
+    seatNo: { type: String, required: true },
     section: { type: String, enum: ['lower', 'upper'], required: true },
     isAvailable: { type: Boolean, default: true },
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
