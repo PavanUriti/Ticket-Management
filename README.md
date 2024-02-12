@@ -2,6 +2,12 @@
 
 This repository contains the backend implementation of a Bus Ticket Management using Node.js, Express.js, MongoDB. The platform allows administrators to manage user registration, and bus registration. It also provides APIs for admin registration, customer registration, login and tickets booking.
 
+## Deployment
+
+The Bus Ticket Management application and its database are deployed on an Amazon EC2 instance. Below are the details for accessing the deployed application:
+
+- **Application URL**: [[Your Application URL](http://3.110.132.142)]
+
 API Endpoints:
 
 // POST endpoint to register a new User(Admin/Customer)
