@@ -16,7 +16,9 @@ async function validateToken(req, res, next) {
 
       const routePath = req.url;
 
-      if (routePath.includes('/login') || routePath.includes('/register')) {
+      if (routePath === '/') {
+        authenticateRoute = false;
+      } else if (routePath.includes('/favicon.ico') || routePath.includes('/login') || routePath.includes('/register')) {
           authenticateRoute = false;
       } else {
           if (!authToken) {
