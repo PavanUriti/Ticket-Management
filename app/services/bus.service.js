@@ -234,29 +234,25 @@ async function getTicketsStatus(busId, requestedSeats = []) {
  */
 async function getTicketsByStatus(busId, ticketStatus) {
   try {
-    const matchCondition = ticketStatus === 'all'
-      ? {}
-      : ticketStatus === 'open'
+    const pipeline = [
+      { $match: { _id: new mongoose.Types.ObjectId(busId) } },
+      { $unwind: '$seats' },
+    ];
+
+    const matchCondition = ticketStatus === 'open'
         ? { 'seats.isAvailable': true }
         : { 'seats.isAvailable': false };
 
-    const pipeline = [
-      { $match: { _id: new mongoose.Types.ObjectId(busId) } },
-      {
-        $unwind: '$seats',
-      },
-      {
-        $match: matchCondition,
-      },
-    ];
+    pipeline.push({ $match: matchCondition });
+  
 
     if (ticketStatus !== 'open') {
       pipeline.push(
         {
           $lookup: {
-            'from': 'bookings',
-            'let': {'bookingId':'$seats.bookingId' },
-            'pipeline': [
+            from: 'bookings',
+            let: { bookingId: '$seats.bookingId' },
+            pipeline: [
               { $match: { $expr: { $eq: ['$_id', '$$bookingId'] } } },
               {
                 $project: {
@@ -264,17 +260,29 @@ async function getTicketsByStatus(busId, ticketStatus) {
                 },
               },
             ],
-            'as': 'bookingDetails',
+            as: 'bookingDetails',
           },
         },
-        { '$unwind': '$bookingDetails' },
-        { '$unwind': '$bookingDetails.seats' },
-        { 
-          $match: { 
-            $expr: { 
-              $eq: [ '$bookingDetails.seats.seatNo', '$seats.seatNo' ]
-            }
-          } 
+        { $unwind: { path: '$bookingDetails', preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            matchingSeats: {
+              $filter: {
+                input: '$bookingDetails.seats',
+                as: 'bookingSeat',
+                cond: {
+                  $eq: ['$seats.seatNo', '$$bookingSeat.seatNo'],
+                },
+              },
+            },
+          },
+        },
+        {
+          $match: {
+            $expr: {
+              $gt: [{ $size: '$matchingSeats' }, 0],
+            },
+          },
         }
       );
     }
@@ -288,7 +296,7 @@ async function getTicketsByStatus(busId, ticketStatus) {
         bookingId: { $ifNull: ['$seats.bookingId', '$$REMOVE'] },
         passengerDetails: {
           $cond: [
-            {$gt: ['$bookingDetails.seats.passengerDetails.age', null]},
+            { $gt: ['$bookingDetails.seats.passengerDetails.age', null] },
             {
               gender: '$bookingDetails.seats.passengerDetails.gender',
               age: '$bookingDetails.seats.passengerDetails.age',
@@ -306,6 +314,7 @@ async function getTicketsByStatus(busId, ticketStatus) {
     throw error;
   }
 }
+
 
 /**
  * 

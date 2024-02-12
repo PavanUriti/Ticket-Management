@@ -13,7 +13,6 @@ module.exports = async function (app) {
   // Serve static files from the "public" directory
   app.use(express.static(path.join(__dirname, '../public')));
 
-  // Adjust routes for user and bus accordingly
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/buses', busRouter);
 

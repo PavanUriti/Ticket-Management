@@ -142,7 +142,7 @@ async function getTicketsByStatus(req, res, next) {
     try {
         const ticketStatus = req.query.status || 'all';
 
-        if (ticketStatus !== 'open' && ticketStatus !== 'close' && ticketStatus !== 'all') {
+        if (ticketStatus !== 'open' && ticketStatus !== 'close') {
             throw new ClientError(StatusCodes.BAD_REQUEST, 'Invalid ticket status' );
         }
 
