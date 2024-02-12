@@ -6,7 +6,7 @@ This repository contains the backend implementation of a Bus Ticket Management u
 
 The Bus Ticket Management application and its database are deployed on an Amazon EC2 instance. Below are the details for accessing the deployed application:
 
-- **Application URL**: [[Your Application URL](http://3.110.132.142)]
+- **Application URL**: [[Application URL](http://3.110.132.142)]
 
 API Endpoints:
 
