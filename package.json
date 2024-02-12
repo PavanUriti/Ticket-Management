@@ -1,11 +1,11 @@
 {
-  "name": "test",
+  "name": "app",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "postinstall": "",
-    "start": "cross-env NODE_ENV=DEV nodemon index.js --trace-sync-io --host 0.0.0.0",
+    "start": "nodemon index.js --trace-sync-io --host 0.0.0.0",
     "debug": "nodemon --inspect index.js"
   },
   "author": "",
