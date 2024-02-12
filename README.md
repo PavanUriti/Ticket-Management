@@ -30,3 +30,4 @@ busRouter.post('/:id/ticket/bookings', adminOnly, busController.getBookingDetail
 
 
 Attaching Postman Collection APIs.
+[Bus Ticket Management.postman_collection.json](https://github.com/pavan567/Ticket-Management/files/14246693/Bus.Ticket.Management.postman_collection.json)
